@@ -26,7 +26,7 @@ document.getElementById("file").addEventListener("change", async (e) => {
 
     try {
         const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
-        const result = await invoke("scan_qr", { bytes });
+        const results = await invoke("scan_qr", { bytes });
         document.getElementById("scan-result").textContent = results.join("\n");
     } catch (err) {
         error.textContent = String(err);
