@@ -1,0 +1,17 @@
+textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1rem;
+    padding: 8px;
+}
+
+#output svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin-top: 16px;
+}
+
+.error {
+    color: #c00;
+}
