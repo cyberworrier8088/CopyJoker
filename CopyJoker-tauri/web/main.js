@@ -51,6 +51,59 @@ downloadButton.addEventListener("click", () => {
     URL.revokeObjectURL(url);
 });
 
+async function svgToPngBytes(file) {
+    
+    const svgText = await file.text();
+
+    const blob = new Blob(
+        [svgText],
+        { type: "image/svg+xml" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    try {
+
+        const image = new Image();
+
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.src = url;
+        });
+
+        const canvas = document.createElement("canvas");
+        const size = 1024;
+
+        canvas.width = size;
+        canvas.height = size;
+
+        const context = canvas.getContext("2d");
+
+        context.drawImage(
+            image,
+            0,
+            0,
+            size,
+            size
+        );
+
+        const pngBlob = await new Promise((resolve) => {
+            canvas.toBlob(resolve, "image/png");
+        });
+
+        if (!pngBlob) {
+            throw new Error("Could not convert SVG to PNG");
+        }
+
+        return Array.from(
+            new Uint8Array(await pngBlob.arrayBuffer())
+        );
+    } finally {
+
+    }
+}
+
 
 document.getElementById("file").addEventListener("change", async (e) => {
 
@@ -61,10 +114,24 @@ document.getElementById("file").addEventListener("change", async (e) => {
     document.getElementById("scan-result").textContent = "";
 
     try {
-        const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+        let bytes;
+
+        // SVG needs to be converted into PNG first
+        if (
+            file.type === "image/svg+xml" ||
+            file.name.toLowerCase().endsWith(".svg")
+        ) {
+            bytes = await svgToPngBytes(file);
+        } else {
+            bytes = Array.from(
+                new Uint8Array(await file.arrayBuffer())
+            );
+        }
+
         const results = await invoke("scan_qr", { bytes });
+
         document.getElementById("scan-result").textContent = results.join("\n");
     } catch (err) {
         error.textContent = String(err);
     }
-})
+});
