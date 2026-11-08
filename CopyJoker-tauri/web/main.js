@@ -3,16 +3,52 @@ const { invoke } = window.__TAURI__.core;
 const input = document.getElementById("input");
 const output = document.getElementById("output");
 const error = document.getElementById("error");
+const downloadButton = document.getElementById("download");
+
+let generatedQrSvg = null;
 
 document.getElementById("generate").addEventListener("click", async () => {
     error.textContent = "";
 
     try {
-        output.innerHTML = await invoke("generate_qr", { text: input.value });
+        generatedQrSvg = await invoke("generate_qr", { 
+            text: input.value
+        });
+
+        output.innerHTML = generatedQrSvg;
+        downloadButton.disabled = false;
     } catch (err) {
         output.innerHTML = "";
+        generatedQrSvg = null;
+        downloadButton.disabled = true;
+
         error.textContent = String(err);
     }
+});
+
+downloadButton.addEventListener("click", () => {
+    if (!generatedQrSvg) {
+        return;
+    }
+
+    const blob = new Blob(
+        [generatedQrSvg],
+        { type: "image/svg+xml" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "copyjoker-qr.svg";
+
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
 });
 
 
