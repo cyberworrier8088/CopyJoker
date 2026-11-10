@@ -3,25 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <title>CopyJoker App</title>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <main>
-        <h1>QR Generator</h1>
-        <textarea id="input" rows="3" placeholder="Enter text or a URL"></textarea>
-        <button id="generate">Generate</button>
-        
-        <button id="download" disabled>Download QR</button>
-        <p id="error" class="error"></p>
-        <div id="output"></div>
 
-        <hr>
-        <h2>Scan QR from image</h2>
-        <input type="file" id="file" accept="image/png,image/jpeg,image/svg+xml,.svg">
-        <p id="scan-result"></p>
+    <main class="app">
+
+        <header class="hero">
+            <div class="logo">CJ</div>
+
+            <div>
+                <h1>CopyJoker</h1>
+
+                <p>
+                    Generate and scan QR codes instantly.
+                </p>
+            </div>
+        </header>
+
+        <section class="card">
+
+
+            <div class="section-title">
+                <span class="icon">✦</span>
+
+                <div>
+                    <h2>Generate QR</h2>
+
+                    <p>Create a QR code from text or a URL.</p>
+                </div>
+            </div>
+
+            <textarea id="input" rows="4" placeholder="Enter text or a URL..."></textarea>
+
+            <div class="button-group">
+
+                <button id="generate" class="primary-button">Generate QR</button>
+
+                <button id="download" class="secondary-button" disabled>Download SVG</button>
+            </div>
+
+            <p id="error" class="error"></p>
+
+            <div id="output" class="qr-output">
+
+                <div class="empty-state">
+                    Your generated QR code will appear here.
+                </div>
+            </div>
+        </section>
+
+
+        <section class="card scaanner-card">
+
+            <div class="section-title">
+                <span class="icon">~</span>
+
+                <div>
+                    <h2>Scan QR</h2>
+
+                    <p>
+                        Upload a PNG, JPG, or SVG QR code.
+                    </p>
+                </div>
+            </div>
+
+            <label for="file" class="upload-area">
+
+                <div class="upload-icon">↑</div>
+
+                <strong>Choose an image</strong>
+
+                <span>
+                    PNG, JPG, JPEG or SVG
+                </span>
+            </label>
+
+            <input type="file" id="file" accept="image/png,image/jpeg,image/svg+xml,svg" hidden>
+
+            <div class="scan-result-box">
+                <span class="result-label">SCAN RESULT</span>
+
+                <p id="scan-result">No QR code scanned yet.</p>
+            </div>
+        </section>
+
+        <footer>
+            <span>CopyJoker</span>
+
+            <span class="dot"></span>
+
+            <span>Built with Rust + Tauri</span>
+        </footer>
     </main>
-
     <script src="main.js"></script>
 </body>
 </html>
