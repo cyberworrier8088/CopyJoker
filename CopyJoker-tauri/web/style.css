@@ -325,4 +325,35 @@ footer {
         gap: 4px;
         align-items: flex-start;
     }
+
+    .camera-actions {
+        flex-direction: column;
+    }
+
+    .camera-actions .button {
+        width: 100%;
+    }
+}
+
+.camera-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.camera-container {
+    width: 100%;
+    margin-bottom: 14px;
+
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #000;
+}
+
+#camera {
+    display: block;
+    width: 100%;
+    max-height: 350px;
+    object-fit: cover;
 }

@@ -4,6 +4,13 @@ const input = document.getElementById("input");
 const output = document.getElementById("output");
 const error = document.getElementById("error");
 const downloadButton = document.getElementById("download");
+const startCameraButton = document.getElementById("start-camera");
+const stopCameraButton = document.getElementById("stop-camera");
+const camera = document.getElementById("camera");
+const cameraContainer = document.getElementById("camera-container");
+
+let cameraStrean = null;
+let scanningCamera = false;
 
 let generatedQrSvg = null;
 
@@ -50,6 +57,114 @@ downloadButton.addEventListener("click", () => {
 
     URL.revokeObjectURL(url);
 });
+
+startCameraButton.addEventListener("click", async () => {
+
+    try {
+        error.textContent = "";
+
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: "environment"
+            },
+            audio: false
+        });
+
+        camera.srcObject = cameraStream
+
+        cameraContainer.hidden = false;
+
+        startCameraButton.disabled = true;
+        stopCameraButton.disabled = false;
+
+        scanningCamera = true;
+        scanCamera();
+    } catch (err) {
+        error.textContent = "Could not access camera: " + String(err);
+    }
+});
+
+async function scanCamera() {
+    
+    const canvas = document.createElement("canvas");
+
+    const context = canvas.getContext("2d");
+
+    while (scanningCamera) {
+
+        if (
+            camera.readyState === camera.HAVE_ENOUGH_DATA
+        ) {
+            canvas.width = camera.videoWidth;
+
+            canvas.height = camera.videoHeight;
+
+            context.drawImage(
+                camera,
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(
+                    resolve,
+                    "image/png"
+                );
+            });
+
+            if (blob) {
+
+                try {
+                    const bytes = Array.from(
+                        new Uint8Array(
+                            await blob.arrayBuffer()
+                        )
+                    );
+
+                    const results = await invoke(
+                        "scan_qr",
+                        { bytes }
+                    );
+
+                    if ( results && results.length > 0) {
+                        document.getElementById("scan-result").textContent = results.join("\n");
+
+                        stopCamera();
+                        return;
+                    }
+                } catch {
+                    // No QR Found in this frame yet.
+                }
+            }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+}
+
+function stopCamera() {
+
+    scanningCamera = false;
+
+    if (cameraStream) {
+        cameraStream
+            .getTracks()
+            .forEach(track => track.stop());
+        cameraStream = null;
+    }
+
+    camera.srcObject = null;
+    cameraContainer.hidden = true;
+    startCameraButton.disabled = false;
+    stopCamera.disabled = true;
+}
+
+stopCameraButton.addEventListener(
+    "click",
+    stopCamera
+);
 
 async function svgToPngBytes(file) {
     
