@@ -1,0 +1,218 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  check-version:
+    name: Check version
+
+    runs-on: ubuntu-24.04
+
+    outputs:
+      notes: ${{ steps.notes.outputs.notes }}
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check tag version
+        working-directory: CopyJoker-tauri
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          CARGO=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+
+          if [ "$TAG" != "$CARGO" ]; then
+            echo "::error::Tag is v$TAG but Cargo.toml says $CARGO"
+            exit 1
+          fi
+
+          echo "Version $TAG is correct"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
+
+          {
+            echo "notes<<END_OF_NOTES"
+
+            git log "${PREV:+$PREV..}$GITHUB_REF_NAME" \
+              --pretty='- %s' \
+              | grep -E '^- (feat|fix)' \
+              || echo "- Improvements and fixes"
+
+            echo "END_OF_NOTES"
+          } >> "$GITHUB_OUTPUT"
+
+
+  desktop:
+    name: Build Desktop (${{ matrix.os }})
+
+    needs:
+      - ci
+      - check-version
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-22.04
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        working-directory: CopyJoker-tauri
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: CopyJoker-tauri
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build and publish desktop release
+        uses: tauri-apps/tauri-action@v0
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        with:
+          projectPath: CopyJoker-tauri
+          tauriScript: cargo tauri
+
+          tagName: ${{ github.ref_name }}
+
+          releaseName: CopyJoker ${{ github.ref_name }}
+
+          releaseBody: |
+            ## What's new
+
+            ${{ needs.check-version.outputs.notes }}
+
+            ## Downloads
+
+            - Windows: `.exe` or `.msi`
+            - macOS: `.dmg`
+            - Linux: `.AppImage` or `.deb`
+            - Android: APK
+
+          releaseDraft: false
+          prerelease: false
+
+
+  android:
+    name: Build Android APK
+
+    needs:
+      - ci
+      - check-version
+
+    runs-on: ubuntu-24.04
+
+    defaults:
+      run:
+        working-directory: CopyJoker-tauri
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.2.12479018"
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Android Rust targets
+        run: |
+          rustup target add \
+            aarch64-linux-android \
+            armv7-linux-androideabi \
+            x86_64-linux-android \
+            i686-linux-android
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: CopyJoker-tauri
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build Android APK
+        run: cargo tauri android build --apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+
+        with:
+          name: CopyJoker-Android-${{ github.ref_name }}
+          path: |
+            CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
+
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
