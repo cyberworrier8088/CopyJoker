@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  copyjoker_app_lib::run();
+    copyjoker_app_lib::run();
 }
