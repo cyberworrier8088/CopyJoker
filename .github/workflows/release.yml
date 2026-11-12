@@ -62,7 +62,7 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - ubuntu-22.04
+          - ubuntu-24.04
           - macos-latest
 
     runs-on: ${{ matrix.os }}
@@ -102,34 +102,16 @@ jobs:
 
       - name: Build and publish desktop release
         uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: CopyJoker-tauri
           tauriScript: cargo tauri
-          tagName: ${{ github.ref_name }}
-          releaseName: CopyJoker ${{ github.ref_name }}
-          releaseBody: |
-            ## What's new
-
-            ${{ needs.check-version.outputs.notes }}
-
-            ## Downloads
-
-            - Windows: `.exe` or `.msi`
-            - macOS: `.dmg`
-            - Linux: `.AppImage`, `.deb`, or `.rpm`
-            - Android: arm64 APK
-
-          releaseDraft: false
-          prerelease: false
+          uploadWorkflowArtifacts: true
 
   android:
     name: Build Android APK
     needs:
       - ci
       - check-version
-      - desktop
 
     runs-on: ubuntu-24.04
     defaults:
@@ -156,8 +138,8 @@ jobs:
         run: |
           sdkmanager --install \
             "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
             "ndk;30.0.16248370"
 
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
@@ -198,10 +180,64 @@ jobs:
           path: CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
-      - name: Upload APK to GitHub Release
+  publish:
+    name: Publish verified release assets
+    needs:
+      - check-version
+      - desktop
+      - android
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download platform build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-downloads
+
+      - name: Verify and name release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir release-assets
+
+          copy_one() {
+            local pattern="$1"
+            local destination="$2"
+            mapfile -d '' matches < <(find release-downloads -type f -iname "$pattern" -print0)
+            if [ "${#matches[@]}" -ne 1 ]; then
+              echo "::error::Expected exactly one $pattern package, found ${#matches[@]}."
+              find release-downloads -type f -print
+              exit 1
+            fi
+            cp "${matches[0]}" "release-assets/$destination"
+          }
+
+          copy_one '*-setup.exe' 'CopyJoker_x64-setup.exe'
+          copy_one '*.msi' 'CopyJoker_x64.msi'
+          copy_one '*.AppImage' 'CopyJoker.AppImage'
+          copy_one '*.deb' 'CopyJoker.deb'
+          copy_one '*.dmg' 'CopyJoker.dmg'
+          copy_one '*.apk' 'CopyJoker.apk'
+
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
-          files: CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          name: CopyJoker ${{ github.ref_name }}
+          body: |
+            ## What's new
+
+            ${{ needs.check-version.outputs.notes }}
+
+            ## Downloads
+
+            - Windows: `CopyJoker_x64-setup.exe`, `CopyJoker_x64.msi`
+            - Linux: `CopyJoker.AppImage`, `CopyJoker.deb`
+            - macOS: `CopyJoker.dmg`
+            - Android: `CopyJoker.apk` (arm64)
+          files: release-assets/*
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false

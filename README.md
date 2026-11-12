@@ -24,6 +24,11 @@ You can generate QR codes from text or URLs, download generated QR codes as SVG 
 ![img](img/g.png)
 
 ## Getting Started
+
+### Release downloads
+
+Each GitHub release includes installers for Windows (`CopyJoker_x64-setup.exe` and `CopyJoker_x64.msi`), Linux (`CopyJoker.AppImage` and `CopyJoker.deb`), macOS (`CopyJoker.dmg`), and Android (`CopyJoker.apk`, arm64).
+
 ### Dependencies
 
 Before running CopyJoker, make sure you have the followeing installed:
