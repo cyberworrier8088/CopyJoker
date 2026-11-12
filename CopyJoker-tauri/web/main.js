@@ -8,11 +8,19 @@ const startCameraButton = document.getElementById("start-camera");
 const stopCameraButton = document.getElementById("stop-camera");
 const camera = document.getElementById("camera");
 const cameraContainer = document.getElementById("camera-container");
+const scanResult = document.getElementById("scan-result");
+const copyResultButton = document.getElementById("copy-result");
 
 let cameraStrean = null;
 let scanningCamera = false;
 
 let generatedQrSvg = null;
+
+
+function setScanResult(text) {
+    scanResult.textContent = text;
+    copyResultButton.disabled = !text;
+}
 
 document.getElementById("generate").addEventListener("click", async () => {
     error.textContent = "";
@@ -129,7 +137,7 @@ async function scanCamera() {
                     );
 
                     if ( results && results.length > 0) {
-                        document.getElementById("scan-result").textContent = results.join("\n");
+                        setScanResult(results.join("\n"));
 
                         stopCamera();
                         return;
@@ -226,7 +234,7 @@ document.getElementById("file").addEventListener("change", async (e) => {
     if (!file) return;
 
     error.textContent = "";
-    document.getElementById("scan-result").textContent = "";
+    setScanResult("");
 
     try {
         let bytes;
@@ -245,8 +253,28 @@ document.getElementById("file").addEventListener("change", async (e) => {
 
         const results = await invoke("scan_qr", { bytes });
 
-        document.getElementById("scan-result").textContent = results.join("\n");
+        setScanResult(results.join("\n"));
     } catch (err) {
         error.textContent = String(err);
+    }
+});
+
+copyResultButton.addEventListener("click", async () => {
+    const text = scanResult.textContent.trim();
+
+    if (!text) {
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(text);
+        const originalText = copyResultButton.textContent;
+        copyResultButton.textContent = "Copied!";
+
+        setTimeout(() => {
+            copyResultButton.textContent = originalText;
+        }, 1500);
+    } catch (err) {
+        error.textContent = "Could not copy text: " + String(err);
     }
 });

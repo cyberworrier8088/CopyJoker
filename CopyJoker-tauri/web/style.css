@@ -357,3 +357,13 @@ footer {
     max-height: 350px;
     object-fit: cover;
 }
+
+.result-actions {
+    padding: 0 12px 12px;
+    display: flex;
+    gap: 10px;
+}
+
+#copy-result {
+    width: 100%;
+}
