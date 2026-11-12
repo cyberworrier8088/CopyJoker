@@ -100,7 +100,7 @@ async function svgToPngBytes(file) {
             new Uint8Array(await pngBlob.arrayBuffer())
         );
     } finally {
-
+        URL.revokeObjectURL(url);
     }
 }
 

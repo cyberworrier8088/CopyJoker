@@ -2,12 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <title>CopyJoker App</title>
-    
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>CopyJoker</title>
+
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <main class="app">
@@ -24,10 +29,12 @@
             </div>
         </header>
 
-        <section class="card">
 
+        <!-- QR GENERATOR -->
+         <div class="workspace">
+        <section class="workspace">
 
-            <div class="section-title">
+            <div class="workspace-header">
                 <span class="icon">✦</span>
 
                 <div>
@@ -37,30 +44,51 @@
                 </div>
             </div>
 
-            <textarea id="input" rows="4" placeholder="Enter text or a URL..."></textarea>
 
-            <div class="button-group">
+            <textarea
+                id="input"
+                rows="4"
+                placeholder="Enter text or a URL..."
+            ></textarea>
 
-                <button id="generate" class="primary-button">Generate QR</button>
 
-                <button id="download" class="secondary-button" disabled>Download SVG</button>
+            <div class="actions">
+
+                <button id="generate" class="button primary">
+                    Generate QR
+                </button>
+
+                <button
+                    id="download"
+                    class="button"
+                    disabled
+                >
+                    Download SVG
+                </button>
+
             </div>
+
 
             <p id="error" class="error"></p>
 
-            <div id="output" class="qr-output">
+
+            <div id="output" class="preview">
 
                 <div class="empty-state">
                     Your generated QR code will appear here.
                 </div>
+
             </div>
+
         </section>
 
 
-        <section class="card scaanner-card">
+        <!-- QR SCANNER -->
 
-            <div class="section-title">
-                <span class="icon">~</span>
+        <section class="workspace scanner-workspace">
+
+            <div class="workspace-header">
+                <span class="icon">⌁</span>
 
                 <div>
                     <h2>Scan QR</h2>
@@ -71,7 +99,8 @@
                 </div>
             </div>
 
-            <label for="file" class="upload-area">
+
+            <label for="file" class="file-picker">
 
                 <div class="upload-icon">↑</div>
 
@@ -80,16 +109,34 @@
                 <span>
                     PNG, JPG, JPEG or SVG
                 </span>
+
             </label>
 
-            <input type="file" id="file" accept="image/png,image/jpeg,image/svg+xml,svg" hidden>
 
-            <div class="scan-result-box">
-                <span class="result-label">SCAN RESULT</span>
+            <input
+                type="file"
+                id="file"
+                accept="image/png,image/jpeg,image/svg+xml,.svg"
+                hidden
+            >
 
-                <p id="scan-result">No QR code scanned yet.</p>
+
+            <div class="result">
+
+                <span class="result-header">
+                    SCAN RESULT
+                </span>
+
+                <p id="scan-result">
+                    No QR code scanned yet.
+                </p>
+
             </div>
+
         </section>
+
+        </div>
+
 
         <footer>
             <span>CopyJoker</span>
@@ -98,7 +145,11 @@
 
             <span>Built with Rust + Tauri</span>
         </footer>
+
     </main>
+
+
     <script src="main.js"></script>
+
 </body>
 </html>
