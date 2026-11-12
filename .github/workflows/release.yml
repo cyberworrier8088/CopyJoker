@@ -9,65 +9,56 @@ permissions:
   contents: write
 
 jobs:
-
   ci:
     uses: ./.github/workflows/ci.yml
 
   check-version:
-    name: Check version
-
+    name: Check release version and notes
     runs-on: ubuntu-24.04
-
     outputs:
       notes: ${{ steps.notes.outputs.notes }}
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Check tag version
+      - name: Check tag against Cargo.toml and tauri.conf.json
         working-directory: CopyJoker-tauri
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          CARGO=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          CARGO_VERSION=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          TAURI_VERSION=$(python3 -c 'import json; print(json.load(open("tauri.conf.json"))["version"])')
 
-          if [ "$TAG" != "$CARGO" ]; then
-            echo "::error::Tag is v$TAG but Cargo.toml says $CARGO"
+          if [ "$TAG" != "$CARGO_VERSION" ] || [ "$TAG" != "$TAURI_VERSION" ]; then
+            echo "::error::Tag is v$TAG, Cargo.toml is $CARGO_VERSION, and tauri.conf.json is $TAURI_VERSION."
             exit 1
           fi
 
-          echo "Version $TAG is correct"
+          echo "Release version $TAG matches Cargo.toml and tauri.conf.json."
 
       - name: Generate release notes
         id: notes
         run: |
-          PREV=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
 
           {
             echo "notes<<END_OF_NOTES"
-
-            git log "${PREV:+$PREV..}$GITHUB_REF_NAME" \
-              --pretty='- %s' \
-              | grep -E '^- (feat|fix)' \
+            git log "${PREV:+$PREV..}${GITHUB_REF_NAME}" --pretty='- %s' \
+              | grep -E '^- (feat|fix|refactor|docs|chore)' \
               || echo "- Improvements and fixes"
-
             echo "END_OF_NOTES"
           } >> "$GITHUB_OUTPUT"
 
-
   desktop:
     name: Build Desktop (${{ matrix.os }})
-
     needs:
       - ci
       - check-version
 
     strategy:
       fail-fast: false
-
       matrix:
         os:
           - windows-latest
@@ -75,13 +66,11 @@ jobs:
           - macos-latest
 
     runs-on: ${{ matrix.os }}
-
     defaults:
       run:
         working-directory: CopyJoker-tauri
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -90,6 +79,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
             libwebkit2gtk-4.1-dev \
             libxdo-dev \
             libssl-dev \
@@ -109,18 +102,13 @@ jobs:
 
       - name: Build and publish desktop release
         uses: tauri-apps/tauri-action@v0
-
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
         with:
           projectPath: CopyJoker-tauri
           tauriScript: cargo tauri
-
           tagName: ${{ github.ref_name }}
-
           releaseName: CopyJoker ${{ github.ref_name }}
-
           releaseBody: |
             ## What's new
 
@@ -130,34 +118,30 @@ jobs:
 
             - Windows: `.exe` or `.msi`
             - macOS: `.dmg`
-            - Linux: `.AppImage` or `.deb`
-            - Android: APK
+            - Linux: `.AppImage`, `.deb`, or `.rpm`
+            - Android: arm64 APK
 
           releaseDraft: false
           prerelease: false
 
-
   android:
     name: Build Android APK
-
     needs:
       - ci
       - check-version
+      - desktop
 
     runs-on: ubuntu-24.04
-
     defaults:
       run:
         working-directory: CopyJoker-tauri
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Setup Java
         uses: actions/setup-java@v5
-
         with:
           distribution: temurin
           java-version: "21"
@@ -165,16 +149,19 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install Android SDK and NDK
         run: |
-          sdkmanager \
+          sdkmanager --install \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0" \
-            "ndk;27.2.12479018"
+            "ndk;30.0.16248370"
 
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -195,24 +182,26 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2" --locked
 
+      - name: Initialize Android project when it is not committed
+        run: |
+          if [ ! -d "gen/android" ]; then
+            cargo tauri android init --ci --skip-targets-install
+          fi
+
       - name: Build Android APK
-        run: cargo tauri android build --apk
+        run: cargo tauri android build --apk --target aarch64
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
-
         with:
           name: CopyJoker-Android-${{ github.ref_name }}
-          path: |
-            CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
 
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
-
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
         with:
           tag_name: ${{ github.ref_name }}
-          files: |
-            CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          files: CopyJoker-tauri/gen/android/app/build/outputs/apk/**/*.apk
