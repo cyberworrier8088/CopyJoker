@@ -53,7 +53,8 @@ jobs:
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev
+            librsvg2-dev \
+            libfuse2t64
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,16 +28,24 @@ jobs:
       - name: Check tag against Cargo.toml and tauri.conf.json
         working-directory: CopyJoker-tauri
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
           CARGO_VERSION=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
           TAURI_VERSION=$(python3 -c 'import json; print(json.load(open("tauri.conf.json"))["version"])')
 
-          if [ "$TAG" != "$CARGO_VERSION" ] || [ "$TAG" != "$TAURI_VERSION" ]; then
-            echo "::error::Tag is v$TAG, Cargo.toml is $CARGO_VERSION, and tauri.conf.json is $TAURI_VERSION."
+          if [ "$CARGO_VERSION" != "$TAURI_VERSION" ]; then
+            echo "::error::Cargo.toml ($CARGO_VERSION) does not match tauri.conf.json ($TAURI_VERSION)."
             exit 1
           fi
 
-          echo "Release version $TAG matches Cargo.toml and tauri.conf.json."
+          if [[ "$GITHUB_REF_NAME" == v* ]]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            if [ "$TAG" != "$CARGO_VERSION" ]; then
+              echo "::error::Tag is v$TAG but Cargo.toml is $CARGO_VERSION."
+              exit 1
+            fi
+            echo "Release version $TAG matches Cargo.toml and tauri.conf.json."
+          else
+            echo "Running manual dispatch for version $CARGO_VERSION."
+          fi
 
       - name: Generate release notes
         id: notes
@@ -90,7 +99,8 @@ jobs:
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev
+            librsvg2-dev \
+            libfuse2t64
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -101,7 +111,9 @@ jobs:
           workspaces: CopyJoker-tauri
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2" --locked
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
 
       - name: Build desktop bundles
         run: cargo tauri build --bundles ${{ matrix.bundles }}
@@ -174,13 +186,8 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Add Android Rust targets
-        run: |
-          rustup target add \
-            aarch64-linux-android \
-            armv7-linux-androideabi \
-            x86_64-linux-android \
-            i686-linux-android
+      - name: Add Android Rust target
+        run: rustup target add aarch64-linux-android
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -188,7 +195,9 @@ jobs:
           workspaces: CopyJoker-tauri
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2" --locked
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
 
       - name: Initialize Android project when it is not committed
         run: |
