@@ -11,7 +11,7 @@ const cameraContainer = document.getElementById("camera-container");
 const scanResult = document.getElementById("scan-result");
 const copyResultButton = document.getElementById("copy-result");
 
-let cameraStrean = null;
+let cameraStream = null;
 let scanningCamera = false;
 
 let generatedQrSvg = null;
@@ -166,7 +166,7 @@ function stopCamera() {
     camera.srcObject = null;
     cameraContainer.hidden = true;
     startCameraButton.disabled = false;
-    stopCamera.disabled = true;
+    stopCameraButton.disabled = true;
 }
 
 stopCameraButton.addEventListener(
