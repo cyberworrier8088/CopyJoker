@@ -68,7 +68,7 @@ body {
     font-size: 0.9rem;
 }
 
-.workspace {
+workspace-grid{
     width: 100%;
     flex: 1;
     display: grid;
@@ -301,7 +301,7 @@ footer {
 }
 
 @media (max-width: 720px) {
-    .workspace {
+   workspace-grid{
         grid-template-columns: 1fr;
     }
 }
